@@ -4,9 +4,8 @@ import { clearCrmToken, isCrmLoggedIn, setCrmToken } from "../utils/auth.js";
 import { HiOutlineLockClosed, HiOutlineUser } from "react-icons/hi";
 
 const CRM_API_URL = import.meta.env.VITE_CRM_API_URL || "http://localhost:5000/api/crm/leads";
-// Derive base URL (e.g. "http://localhost:5000/api/crm")
+// Derive base URL (e.g. "http://localhost:5000/api/crm/auth/login")
 const CRM_AUTH_URL = CRM_API_URL.replace(/\/leads\/?$/, "/auth/login");
-const ADMIN_AUTH_URL = "http://localhost:5000/api/admin/login";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -27,38 +26,24 @@ export default function Login() {
     setLoading(true);
 
     try {
-      let res = null;
-      let data = null;
-
-      // 1. Try CRM Backend auth endpoint first
-      try {
-        res = await fetch(CRM_AUTH_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: username.trim(), password })
-        });
-        data = await res.json();
-      } catch (err) {
-        // Fallback to Admin backend if CRM backend endpoint is unreachable
-        res = await fetch(ADMIN_AUTH_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: username.trim(), password })
-        });
-        data = await res.json();
-      }
+      const res = await fetch(CRM_AUTH_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), password })
+      });
+      const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data?.error || data?.message || "Login failed.");
+        throw new Error(data?.error || data?.message || "Invalid CRM credentials.");
       }
 
       const token = data.token || "authenticated_crm_session";
-      const user = data.user || { username: username.trim(), role: "Administrator" };
+      const user = data.user || { username: username.trim(), role: "crm_admin" };
 
       setCrmToken(token, user);
       navigate("/", { replace: true });
     } catch (err) {
-      setError(err.message || "Invalid username or password.");
+      setError(err.message || "Invalid CRM username or password.");
     } finally {
       setLoading(false);
     }
@@ -114,7 +99,7 @@ export default function Login() {
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
                   className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-official/30 focus:border-official focus:bg-white transition-all duration-200"
-                  placeholder="admin"
+                  placeholder="crmadmin"
                   autoComplete="username"
                   required
                 />

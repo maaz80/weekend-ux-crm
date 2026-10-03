@@ -1,4 +1,5 @@
 const API_BASE = import.meta.env.VITE_CRM_API_URL || "http://localhost:5000/api/crm/leads";
+const PERMISSIONS_API = API_BASE.replace(/\/leads\/?$/, "/permissions");
 
 export async function fetchLeads(params = {}) {
   const query = new URLSearchParams();
@@ -86,5 +87,30 @@ export async function deleteLeadRecord(id) {
     method: "DELETE"
   });
   if (!res.ok) throw new Error("Failed to delete lead");
+  return res.json();
+}
+
+export async function fetchCrmPermissions() {
+  try {
+    const res = await fetch(PERMISSIONS_API);
+    if (!res.ok) throw new Error("Failed to fetch permissions");
+    const data = await res.json();
+    return data.permissions;
+  } catch (err) {
+    console.warn("Could not fetch CRM permissions from server:", err);
+    return null;
+  }
+}
+
+export async function saveCrmPermissions(permissions) {
+  const res = await fetch(PERMISSIONS_API, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ permissions })
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to save permissions");
+  }
   return res.json();
 }

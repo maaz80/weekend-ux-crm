@@ -27,8 +27,18 @@ export const isCrmLoggedIn = () => {
 export const getCrmUser = () => {
   try {
     const raw = localStorage.getItem(CRM_USER_STORAGE);
-    return raw ? JSON.parse(raw) : { username: "crmadmin", role: "crm_admin" };
+    return raw ? JSON.parse(raw) : { username: "WeekendUxCRM", role: "crm_admin" };
   } catch {
-    return { username: "crmadmin", role: "crm_admin" };
+    return { username: "WeekendUxCRM", role: "crm_admin" };
   }
+};
+
+export const isCrmAdmin = () => {
+  const user = getCrmUser();
+  return Boolean(user && user.role === "crm_admin");
+};
+
+export const isCrmCaller = () => {
+  const user = getCrmUser();
+  return Boolean(user && (user.role === "crm_caller" || user.role === "crm_staff"));
 };

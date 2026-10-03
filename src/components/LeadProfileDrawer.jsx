@@ -11,6 +11,8 @@ import {
   HiOutlineSparkles,
   HiOutlineClock
 } from "react-icons/hi";
+import { usePermissions } from "../context/PermissionsContext";
+import AdminToggleSwitch from "./AdminToggleSwitch";
 
 const STATUSES = [
   { id: "Pending", label: "Pending", color: "bg-official/20 text-zinc-950 border-official/40" },
@@ -29,6 +31,7 @@ export default function LeadProfileDrawer({
   onScheduleFollowUp,
   onOpenWhatsApp
 }) {
+  const { hasAccess, isAdmin } = usePermissions();
   const [activeTab, setActiveTab] = useState("notes"); // 'notes', 'answers', 'followup'
   const [newNote, setNewNote] = useState("");
   const [counselorName, setCounselorName] = useState("Counselor");
@@ -161,8 +164,21 @@ export default function LeadProfileDrawer({
           <div className="flex items-center gap-2">
             <HiOutlineMail className="w-4 h-4 text-slate-400 shrink-0" />
             <div>
-              <p className="text-[10px] text-slate-400 uppercase font-medium">Email Address</p>
-              <p className="font-medium text-slate-800 truncate">{lead.email || "Not Provided"}</p>
+              <p className="text-[10px] text-slate-400 uppercase font-medium">
+                {lead.instagramUsername ? "Instagram Handle" : "Email Address"}
+              </p>
+              {lead.instagramUsername ? (
+                <a
+                  href={`https://instagram.com/${lead.instagramUsername}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-semibold text-pink-600 hover:underline"
+                >
+                  @{lead.instagramUsername}
+                </a>
+              ) : (
+                <p className="font-medium text-slate-800 truncate">{lead.email || "Not Provided"}</p>
+              )}
             </div>
           </div>
 
@@ -189,49 +205,76 @@ export default function LeadProfileDrawer({
             <HiOutlineClipboardList className="w-4 h-4 text-slate-400 shrink-0" />
             <div>
               <p className="text-[10px] text-slate-400 uppercase font-medium">Lead Source</p>
-              <p className="font-semibold text-slate-800">{lead.source || "Website Lead"}</p>
+              <p className="font-semibold text-slate-800 flex items-center gap-1.5">
+                {lead.source?.includes("Instagram") && <span className="text-pink-600 font-bold">📸</span>}
+                <span>{lead.source || "Website Lead"}</span>
+              </p>
             </div>
           </div>
         </div>
 
         {/* Quick Action Buttons */}
-        <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-200 flex items-center gap-2.5">
-          <a
-            href={`tel:${lead.phone}`}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-colors"
-          >
-            <HiOutlinePhone className="w-4 h-4" />
-            <span>Call Candidate</span>
-          </a>
+        <div className="px-4 py-3 bg-slate-50/50 border-b border-slate-200 flex flex-wrap items-center gap-2.5">
+          {(isAdmin || hasAccess("callLead")) && (
+            <a
+              href={`tel:${lead.phone}`}
+              className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium transition-colors"
+            >
+              <HiOutlinePhone className="w-4 h-4" />
+              <span>Call Candidate</span>
+            </a>
+          )}
 
-          <button
-            onClick={() => onOpenWhatsApp(lead)}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium cursor-pointer transition-colors shadow-xs"
-          >
-            <HiOutlineChatAlt2 className="w-4 h-4" />
-            <span>WhatsApp Message</span>
-          </button>
+          {(isAdmin || hasAccess("whatsapp")) && (
+            <button
+              onClick={() => onOpenWhatsApp(lead)}
+              className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium cursor-pointer transition-colors shadow-xs"
+            >
+              <HiOutlineChatAlt2 className="w-4 h-4" />
+              <span>WhatsApp</span>
+            </button>
+          )}
+
+          {(lead.instagramUsername || lead.source?.includes("Instagram")) && (
+            <a
+              href={`https://instagram.com/${lead.instagramUsername || ""}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex-1 min-w-[130px] flex items-center justify-center gap-1.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 text-white text-xs font-medium cursor-pointer transition-all shadow-xs"
+            >
+              <span>📸 Instagram</span>
+            </a>
+          )}
         </div>
 
         {/* Pipeline Stage Switcher */}
         <div className="p-4 bg-white border-b border-slate-100">
-          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-2">
-            Current Stage
-          </label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
+              Current Stage
+            </label>
+            {isAdmin && <AdminToggleSwitch featureKey="updateStatus" />}
+          </div>
           <div className="grid grid-cols-3 gap-1.5">
-            {STATUSES.map((st) => (
-              <button
-                key={st.id}
-                onClick={() => handleStatusChange(st.id)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border text-center transition-all cursor-pointer ${
-                  lead.status === st.id
-                    ? `${st.color} font-semibold shadow-xs`
-                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
-                }`}
-              >
-                {st.label}
-              </button>
-            ))}
+            {STATUSES.map((st) => {
+              const canEditStatus = isAdmin || hasAccess("updateStatus");
+              return (
+                <button
+                  key={st.id}
+                  disabled={!canEditStatus}
+                  onClick={() => canEditStatus && handleStatusChange(st.id)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium border text-center transition-all ${
+                    canEditStatus ? "cursor-pointer" : "cursor-not-allowed opacity-75"
+                  } ${
+                    lead.status === st.id
+                      ? `${st.color} font-semibold shadow-xs`
+                      : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                  }`}
+                >
+                  {st.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Prompt for Enrollment Fee */}
@@ -323,35 +366,49 @@ export default function LeadProfileDrawer({
           {/* TAB 1: NOTES TIMELINE */}
           {activeTab === "notes" && (
             <div className="space-y-4">
+              {/* Admin Toggle */}
+              {isAdmin && (
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase">Staff Note Permissions</span>
+                  <AdminToggleSwitch featureKey="addNotes" />
+                </div>
+              )}
+
               {/* Add Note Form */}
-              <form onSubmit={handleNoteSubmit} className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                <div className="flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Add Call Remark / Discussion Note:</span>
-                  <input
-                    type="text"
-                    placeholder="Your name"
-                    value={counselorName}
-                    onChange={(e) => setCounselorName(e.target.value)}
-                    className="w-28 text-right bg-transparent border-b border-slate-300 focus:outline-none text-[11px]"
+              {isAdmin || hasAccess("addNotes") ? (
+                <form onSubmit={handleNoteSubmit} className="space-y-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>Add Call Remark / Discussion Note:</span>
+                    <input
+                      type="text"
+                      placeholder="Your name"
+                      value={counselorName}
+                      onChange={(e) => setCounselorName(e.target.value)}
+                      className="w-28 text-right bg-transparent border-b border-slate-300 focus:outline-none text-[11px]"
+                    />
+                  </div>
+                  <textarea
+                    rows="2"
+                    placeholder="e.g. Spoke with candidate. Looking for UI/UX weekend batch. Budget is fine. Call again on Tuesday 4 PM."
+                    value={newNote}
+                    onChange={(e) => setNewNote(e.target.value)}
+                    className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-official"
                   />
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={savingNote || !newNote.trim()}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40"
+                    >
+                      {savingNote ? "Saving..." : "Add Note"}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                  Note creation is currently disabled for team members by Admin.
                 </div>
-                <textarea
-                  rows="2"
-                  placeholder="e.g. Spoke with candidate. Looking for UI/UX weekend batch. Budget is fine. Call again on Tuesday 4 PM."
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:border-official"
-                />
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={savingNote || !newNote.trim()}
-                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold cursor-pointer disabled:opacity-40"
-                  >
-                    {savingNote ? "Saving..." : "Add Note"}
-                  </button>
-                </div>
-              </form>
+              )}
 
               {/* Notes List */}
               <div className="space-y-3">
@@ -419,51 +476,66 @@ export default function LeadProfileDrawer({
 
           {/* TAB 3: SCHEDULE FOLLOW-UP */}
           {activeTab === "followup" && (
-            <form onSubmit={handleFollowUpSubmit} className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                <HiOutlineClock className="w-4 h-4 text-zinc-800" />
-                <span>Schedule Next Follow-Up Call</span>
-              </div>
+            <div className="space-y-4">
+              {isAdmin && (
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase">Staff Follow-Up Permissions</span>
+                  <AdminToggleSwitch featureKey="scheduleFollowup" />
+                </div>
+              )}
 
-              <div>
-                <label className="text-[11px] font-medium text-slate-600 block mb-1">Follow-Up Date *</label>
-                <input
-                  type="date"
-                  required
-                  value={followUpDate}
-                  onChange={(e) => setFollowUpDate(e.target.value)}
-                  className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
-                />
-              </div>
+              {isAdmin || hasAccess("scheduleFollowup") ? (
+                <form onSubmit={handleFollowUpSubmit} className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
+                    <HiOutlineClock className="w-4 h-4 text-zinc-800" />
+                    <span>Schedule Next Follow-Up Call</span>
+                  </div>
 
-              <div>
-                <label className="text-[11px] font-medium text-slate-600 block mb-1">Preferred Time Slot</label>
-                <input
-                  type="time"
-                  value={followUpTime}
-                  onChange={(e) => setFollowUpTime(e.target.value)}
-                  className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
-                />
-              </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-slate-600 block mb-1">Follow-Up Date *</label>
+                    <input
+                      type="date"
+                      required
+                      value={followUpDate}
+                      onChange={(e) => setFollowUpDate(e.target.value)}
+                      className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
+                    />
+                  </div>
 
-              <div>
-                <label className="text-[11px] font-medium text-slate-600 block mb-1">Follow-Up Objective / Reminder</label>
-                <textarea
-                  rows="2"
-                  placeholder="e.g. Call to confirm attendance for Demo class and answer syllabus questions."
-                  value={followUpRemark}
-                  onChange={(e) => setFollowUpRemark(e.target.value)}
-                  className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
-                />
-              </div>
+                  <div>
+                    <label className="text-[11px] font-medium text-slate-600 block mb-1">Preferred Time Slot</label>
+                    <input
+                      type="time"
+                      value={followUpTime}
+                      onChange={(e) => setFollowUpTime(e.target.value)}
+                      className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
+                    />
+                  </div>
 
-              <button
-                type="submit"
-                disabled={scheduling || !followUpDate}
-                className="w-full py-2 bg-official hover:bg-official/90 text-zinc-950 font-bold text-xs rounded-lg cursor-pointer transition-colors shadow-xs disabled:opacity-40"
-              >
-                {scheduling ? "Scheduling..." : "Save Follow-Up Reminder"}
-              </button>
+                  <div>
+                    <label className="text-[11px] font-medium text-slate-600 block mb-1">Follow-Up Objective / Reminder</label>
+                    <textarea
+                      rows="2"
+                      placeholder="e.g. Call to confirm attendance for Demo class and answer syllabus questions."
+                      value={followUpRemark}
+                      onChange={(e) => setFollowUpRemark(e.target.value)}
+                      className="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={scheduling || !followUpDate}
+                    className="w-full py-2 bg-official hover:bg-official/90 text-zinc-950 font-bold text-xs rounded-lg cursor-pointer transition-colors shadow-xs disabled:opacity-40"
+                  >
+                    {scheduling ? "Scheduling..." : "Save Follow-Up Reminder"}
+                  </button>
+                </form>
+              ) : (
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center text-xs text-slate-500">
+                  Follow-up scheduling is currently disabled for team members by Admin.
+                </div>
+              )}
 
               {lead.followUpDate && (
                 <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-600 space-y-1">
@@ -480,7 +552,7 @@ export default function LeadProfileDrawer({
                   {lead.followUpNote && <p className="italic text-slate-500">"{lead.followUpNote}"</p>}
                 </div>
               )}
-            </form>
+            </div>
           )}
         </div>
       </div>

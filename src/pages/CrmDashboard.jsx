@@ -6,6 +6,7 @@ import LeadProfileDrawer from "../components/LeadProfileDrawer";
 import AddLeadModal from "../components/AddLeadModal";
 import WhatsAppModal from "../components/WhatsAppModal";
 import AnalyticsView from "../components/AnalyticsView";
+import { usePermissions } from "../context/PermissionsContext";
 import {
   fetchLeads,
   fetchAnalytics,
@@ -26,6 +27,7 @@ import {
 } from "react-icons/hi";
 
 export default function CrmDashboard() {
+  const { hasAccess, isAdmin } = usePermissions();
   const [activeTab, setActiveTab] = useState("kanban"); // 'kanban', 'table', 'followups', 'analytics'
   const [leads, setLeads] = useState([]);
   const [total, setTotal] = useState(0);
@@ -35,6 +37,31 @@ export default function CrmDashboard() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState(null);
+
+  // Auto-switch to available tab if current activeTab is disabled for Staff
+  useEffect(() => {
+    if (isAdmin) return;
+    const tabPermMap = {
+      kanban: "kanban",
+      table: "leadsTable",
+      followups: "followups",
+      analytics: "analytics"
+    };
+
+    const currentPerm = tabPermMap[activeTab];
+    if (currentPerm && !hasAccess(currentPerm)) {
+      const candidates = [
+        { id: "kanban", key: "kanban" },
+        { id: "table", key: "leadsTable" },
+        { id: "followups", key: "followups" },
+        { id: "analytics", key: "analytics" }
+      ];
+      const nextAvailable = candidates.find((c) => hasAccess(c.key));
+      if (nextAvailable && nextAvailable.id !== activeTab) {
+        setActiveTab(nextAvailable.id);
+      }
+    }
+  }, [activeTab, hasAccess, isAdmin]);
 
   const showToast = (message, type = "success") => {
     setToast({ message, type });
@@ -309,7 +336,7 @@ export default function CrmDashboard() {
         )}
 
         {/* Tab Views */}
-        {activeTab === "kanban" && (
+        {activeTab === "kanban" && (isAdmin || hasAccess("kanban")) && (
           <KanbanBoard
             leads={leads}
             onSelectLead={(lead) => setSelectedLead(lead)}
@@ -319,7 +346,7 @@ export default function CrmDashboard() {
           />
         )}
 
-        {(activeTab === "table" || activeTab === "followups") && (
+        {(activeTab === "table" || activeTab === "followups") && (isAdmin || hasAccess(activeTab === "table" ? "leadsTable" : "followups")) && (
           <LeadsTable
             leads={leads}
             total={total}
@@ -334,7 +361,23 @@ export default function CrmDashboard() {
           />
         )}
 
-        {activeTab === "analytics" && <AnalyticsView stats={stats} loading={loading} />}
+        {activeTab === "analytics" && (isAdmin || hasAccess("analytics")) && <AnalyticsView stats={stats} loading={loading} />}
+
+        {/* Fallback if all 4 views are disabled for Staff */}
+        {!isAdmin &&
+          !hasAccess("kanban") &&
+          !hasAccess("leadsTable") &&
+          !hasAccess("followups") &&
+          !hasAccess("analytics") && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center space-y-3 shadow-xs">
+              <span className="text-4xl">🔒</span>
+              <h3 className="font-bold text-slate-800 text-base">Pipeline Views Restricted</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Your administrator has temporarily turned off CRM pipeline and leads views for team members.
+                Please contact the CRM administrator to enable access.
+              </p>
+            </div>
+          )}
       </div>
 
       {/* Slide-over Profile Drawer */}

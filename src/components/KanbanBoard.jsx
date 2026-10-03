@@ -6,6 +6,7 @@ import {
   HiOutlineChevronLeft,
   HiOutlineClock
 } from "react-icons/hi";
+import { usePermissions } from "../context/PermissionsContext";
 
 const PIPELINE_COLUMNS = [
   { id: "Pending", title: "Pending Inquiry", color: "border-official bg-official/15 text-zinc-950", dot: "bg-official" },
@@ -23,6 +24,7 @@ export default function KanbanBoard({
   onOpenWhatsApp,
   loading
 }) {
+  const { hasAccess, isAdmin } = usePermissions();
   const getNextStatus = (current) => {
     const ids = PIPELINE_COLUMNS.map((c) => c.id);
     const idx = ids.indexOf(current);
@@ -216,46 +218,52 @@ export default function KanbanBoard({
                       >
                         <div className="flex items-center gap-1">
                           {/* Call Button */}
-                          <a
-                            href={`tel:${lead.phone}`}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                            title="Call Candidate"
-                          >
-                            <HiOutlinePhone className="w-3.5 h-3.5" />
-                          </a>
+                          {(isAdmin || hasAccess("callLead")) && (
+                            <a
+                              href={`tel:${lead.phone}`}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                              title="Call Candidate"
+                            >
+                              <HiOutlinePhone className="w-3.5 h-3.5" />
+                            </a>
+                          )}
 
                           {/* WhatsApp Button */}
-                          <button
-                            onClick={() => onOpenWhatsApp(lead)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                            title="Send WhatsApp Message"
-                          >
-                            <HiOutlineChatAlt2 className="w-3.5 h-3.5" />
-                          </button>
+                          {(isAdmin || hasAccess("whatsapp")) && (
+                            <button
+                              onClick={() => onOpenWhatsApp(lead)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                              title="Send WhatsApp Message"
+                            >
+                              <HiOutlineChatAlt2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
 
                         {/* Pipeline Move Buttons */}
-                        <div className="flex items-center gap-1">
-                          {prevStatus && (
-                            <button
-                              onClick={() => onUpdateStatus(lead._id, prevStatus)}
-                              className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-[10px]"
-                              title={`Move back to ${prevStatus}`}
-                            >
-                              <HiOutlineChevronLeft className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                          {nextStatus && (
-                            <button
-                              onClick={() => onUpdateStatus(lead._id, nextStatus)}
-                              className="flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-100 hover:bg-official/20 hover:text-zinc-950 text-slate-600 text-[10px] font-medium transition-colors"
-                              title={`Advance to ${nextStatus}`}
-                            >
-                              <span>Next</span>
-                              <HiOutlineChevronRight className="w-3 h-3" />
-                            </button>
-                          )}
-                        </div>
+                        {(isAdmin || hasAccess("updateStatus")) && (
+                          <div className="flex items-center gap-1">
+                            {prevStatus && (
+                              <button
+                                onClick={() => onUpdateStatus(lead._id, prevStatus)}
+                                className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-[10px] cursor-pointer"
+                                title={`Move back to ${prevStatus}`}
+                              >
+                                <HiOutlineChevronLeft className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {nextStatus && (
+                              <button
+                                onClick={() => onUpdateStatus(lead._id, nextStatus)}
+                                className="flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-100 hover:bg-official/20 hover:text-zinc-950 text-slate-600 text-[10px] font-medium transition-colors cursor-pointer"
+                                title={`Advance to ${nextStatus}`}
+                              >
+                                <span>Next</span>
+                                <HiOutlineChevronRight className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

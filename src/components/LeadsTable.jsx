@@ -8,6 +8,8 @@ import {
   HiOutlineClock,
   HiOutlineCalendar
 } from "react-icons/hi";
+import { usePermissions } from "../context/PermissionsContext";
+import AdminToggleSwitch from "./AdminToggleSwitch";
 
 const STATUS_OPTIONS = [
   "Pending",
@@ -30,6 +32,8 @@ export default function LeadsTable({
   onDeleteLead,
   loading
 }) {
+  const { hasAccess, isAdmin } = usePermissions();
+
   const exportToCsv = () => {
     if (!leads || leads.length === 0) return;
 
@@ -85,13 +89,18 @@ export default function LeadsTable({
           <p className="text-xs text-slate-500 mt-0.5">Showing {leads.length} of {total} registered inquiries</p>
         </div>
 
-        <button
-          onClick={exportToCsv}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-medium cursor-pointer transition-all shadow-xs"
-        >
-          <HiOutlineDownload className="w-4 h-4 text-slate-500" />
-          <span>Export CSV</span>
-        </button>
+        {(isAdmin || hasAccess("exportCsv")) && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={exportToCsv}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 text-xs font-medium cursor-pointer transition-all shadow-xs"
+            >
+              <HiOutlineDownload className="w-4 h-4 text-slate-500" />
+              <span>Export CSV</span>
+            </button>
+            {isAdmin && <AdminToggleSwitch featureKey="exportCsv" />}
+          </div>
+        )}
       </div>
 
       {/* Table Content */}
@@ -142,7 +151,11 @@ export default function LeadsTable({
                       )}
                     </div>
                     <div className="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5">
-                      <span>{lead.phone}</span>
+                      {lead.instagramUsername ? (
+                        <span className="text-pink-600 font-semibold">@{lead.instagramUsername}</span>
+                      ) : (
+                        <span>{lead.phone}</span>
+                      )}
                       {lead.email && <span className="truncate max-w-30">{lead.email}</span>}
                     </div>
                   </td>
@@ -156,7 +169,13 @@ export default function LeadsTable({
 
                   {/* Source */}
                   <td className="py-3.5 px-4">
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                    <span
+                      className={`text-[11px] font-medium px-2 py-0.5 rounded-md ${
+                        lead.source?.includes("Instagram")
+                          ? "bg-pink-50 text-pink-700 border border-pink-200 font-semibold"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
                       {lead.source}
                     </span>
                   </td>
@@ -191,19 +210,29 @@ export default function LeadsTable({
 
                   {/* Status Dropdown */}
                   <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      value={lead.status}
-                      onChange={(e) => onUpdateStatus(lead._id, e.target.value)}
-                      className={`text-[11px] font-semibold px-2 py-1 rounded-full border cursor-pointer focus:outline-none ${getStatusBadge(
-                        lead.status
-                      )}`}
-                    >
-                      {STATUS_OPTIONS.map((st) => (
-                        <option key={st} value={st}>
-                          {st}
-                        </option>
-                      ))}
-                    </select>
+                    {isAdmin || hasAccess("updateStatus") ? (
+                      <select
+                        value={lead.status}
+                        onChange={(e) => onUpdateStatus(lead._id, e.target.value)}
+                        className={`text-[11px] font-semibold px-2 py-1 rounded-full border cursor-pointer focus:outline-none ${getStatusBadge(
+                          lead.status
+                        )}`}
+                      >
+                        {STATUS_OPTIONS.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span
+                        className={`inline-block text-[11px] font-semibold px-2 py-1 rounded-full border ${getStatusBadge(
+                          lead.status
+                        )}`}
+                      >
+                        {lead.status}
+                      </span>
+                    )}
                   </td>
 
                   {/* Priority */}
@@ -242,38 +271,55 @@ export default function LeadsTable({
                   {/* Action Icons */}
                   <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
-                      <a
-                        href={`tel:${lead.phone}`}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                        title="Call Candidate"
-                      >
-                        <HiOutlinePhone className="w-4 h-4" />
-                      </a>
-                      <button
-                        onClick={() => onOpenWhatsApp(lead)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                        title="WhatsApp Message"
-                      >
-                        <HiOutlineChatAlt2 className="w-4 h-4" />
-                      </button>
+                      {(isAdmin || hasAccess("callLead")) && (
+                        <a
+                          href={`tel:${lead.phone}`}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                          title="Call Candidate"
+                        >
+                          <HiOutlinePhone className="w-4 h-4" />
+                        </a>
+                      )}
+                      {(isAdmin || hasAccess("whatsapp")) && (
+                        <button
+                          onClick={() => onOpenWhatsApp(lead)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                          title="WhatsApp Message"
+                        >
+                          <HiOutlineChatAlt2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {(lead.instagramUsername || lead.source?.includes("Instagram")) && (
+                        <a
+                          href={`https://instagram.com/${lead.instagramUsername || ""}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-pink-600 hover:bg-pink-50 transition-colors flex items-center justify-center"
+                          title="Open Instagram Profile"
+                        >
+                          <span className="text-xs">📸</span>
+                        </a>
+                      )}
                       <button
                         onClick={() => onSelectLead(lead)}
-                        className="p-1.5 rounded-lg text-slate-500 hover:text-zinc-950 hover:bg-official/20 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-zinc-950 hover:bg-official/20 transition-colors cursor-pointer"
                         title="View Full Profile"
                       >
                         <HiOutlineEye className="w-4 h-4" />
                       </button>
-                      <button
-                        onClick={() => {
-                          if (confirm(`Are you sure you want to delete lead ${lead.name}?`)) {
-                            onDeleteLead(lead._id);
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                        title="Delete Lead"
-                      >
-                        <HiOutlineTrash className="w-4 h-4" />
-                      </button>
+                      {(isAdmin || hasAccess("deleteLead")) && (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete lead ${lead.name}?`)) {
+                              onDeleteLead(lead._id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                          title="Delete Lead"
+                        >
+                          <HiOutlineTrash className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
